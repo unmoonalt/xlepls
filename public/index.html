@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>CaseHub | Кейсы</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="logo">🎰 CaseHub</div>
+  <nav>
+    <a href="#" data-page="cases" class="active">Кейсы</a>
+    <a href="#" data-page="upgrade">Апгрейды</a>
+    <a href="#" data-page="leaders">Лидеры</a>
+    <a href="#" data-page="profile">Профиль</a>
+  </nav>
+  <div class="user-panel" id="userPanel"></div>
+</header>
+
+<main>
+  <section id="page-cases">
+    <h2>📦 Кейсы</h2>
+    <div class="grid" id="casesGrid"></div>
+  </section>
+
+  <section id="page-upgrade" hidden>
+    <h2>⬆️ Апгрейдер</h2>
+    <div class="upgrade-layout">
+      <div class="upgrade-col">
+        <h3>Ваш предмет</h3>
+        <select id="upgradeFrom" class="upg-select"></select>
+        <div id="upgFromInfo" style="margin-top:10px; color:#aaa;"></div>
+      </div>
+      <div class="upgrade-col center">
+        <button class="btn primary big" onclick="doUpgrade()">Апгрейд</button>
+        <div id="upgradeChance" style="margin-top:15px; font-weight:bold; color:#fbbf24;">Шанс: 0%</div>
+      </div>
+      <div class="upgrade-col">
+        <h3>Желаемый предмет</h3>
+        <select id="upgradeTo" class="upg-select"></select>
+        <div id="upgToInfo" style="margin-top:10px; color:#aaa;"></div>
+      </div>
+    </div>
+    <div id="upgradeMsg" style="text-align:center; margin-top:20px;"></div>
+  </section>
+
+  <section id="page-leaders" hidden>
+    <h2>🏆 Зал Славы</h2>
+    <div class="grid" style="grid-template-columns: 1fr 1fr;">
+      <div class="card"><h3 style="color:#4ade80">💰 Самые богатые</h3><div id="leaderMoney"></div></div>
+      <div class="card"><h3 style="color:#ff6b35">🔥 Лучшие дропы</h3><div id="leaderDrops"></div></div>
+    </div>
+  </section>
+
+  <section id="page-profile" hidden>
+    <h2>👤 Профиль</h2>
+    <div class="profile-header">
+      <div>ID: <code id="publicId">—</code></div>
+      <div>Баланс: <b id="balanceBig" style="color:#4ade80;">0 ₽</b></div>
+    </div>
+    <div id="equippedBox" style="display:none; background: #1a1a2e; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #4ade80;">
+      <h3 style="margin: 0; color: #4ade80;">🌟 Экипировано (Дает множитель)</h3>
+      <div style="display:flex; align-items:center; gap:15px; margin-top:10px;" id="equippedContent"></div>
+    </div>
+    <h3>🎒 Инвентарь</h3>
+    <div class="grid" id="invGrid"></div>
+  </section>
+</main>
+
+<!-- Модалки -->
+<div id="depositModal" class="modal"><div class="modal-box">
+  <h3>💳 Пополнение (Макс 50к в день)</h3>
+  <input id="depositAmt" type="number" placeholder="Сумма ₽">
+  <button class="btn success" onclick="confirmDeposit()">Пополнить</button>
+  <button class="btn" onclick="document.getElementById('depositModal').classList.remove('active')">Отмена</button>
+</div></div>
+
+<div id="caseAnimModal" class="modal"><div class="modal-box wide">
+  <h3 id="caseAnimTitle">Открываем кейс...</h3>
+  <div class="roulette-container"><div class="roulette-arrow">▼</div><div class="roulette-track" id="rouletteTrack"></div></div>
+  <button class="btn primary" id="caseAnimBtn" style="display:none; margin-top:20px;" onclick="document.getElementById('caseAnimModal').classList.remove('active')">Забрать</button>
+</div></div>
+
+<div id="upgradeAnimModal" class="modal"><div class="modal-box" style="text-align:center;">
+  <h3>Апгрейд...</h3>
+  <div style="font-size:40px" id="upgIcon">🎁</div>
+  <div class="progress-bar"><div id="upgProgress" class="progress-fill"></div></div>
+  <h4 id="upgResult"></h4>
+  <button class="btn primary" id="upgBtn" style="display:none;" onclick="document.getElementById('upgradeAnimModal').classList.remove('active'); refreshProfile(); loadUpgradeOptions();">Ок</button>
+</div></div>
+
+<script src="app.js"></script>
+</body>
+</html>

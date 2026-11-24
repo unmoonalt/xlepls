@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Админка xlepl</title>
+<style>
+  body { background: #0b0b13; color: #fff; font-family: sans-serif; padding: 20px; }
+  .grid { display: flex; gap: 20px; flex-wrap: wrap; }
+  .card { background: #151525; padding: 20px; border-radius: 10px; flex: 1; min-width: 300px; border: 1px solid #2a2a4a; }
+  input, button, select { width: 100%; padding: 10px; margin-top: 8px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0b0b13; color: #fff; box-sizing: border-box; }
+  button { background: #ff6b35; color: white; cursor: pointer; font-weight: bold; border: none; transition: 0.2s; }
+  button:hover { background: #ff8555; }
+  button.danger { background: #ef4444; }
+  h2 { margin-top: 0; color: #ff6b35; }
+  #msg { color: #4ade80; margin-top: 15px; font-weight: bold; position: fixed; bottom: 20px; right: 20px; background: #151525; padding: 15px; border-radius: 8px; border: 1px solid #4ade80; display: none; z-index: 999; }
+  .case-list-item { display: flex; justify-content: space-between; align-items: center; background: #0b0b13; padding: 10px; margin-bottom: 8px; border-radius: 5px; border: 1px solid #2a2a4a; }
+</style>
+</head>
+<body>
+  <h1>Панель Администратора</h1>
+  
+  <div id="loginBox" class="card" style="max-width: 400px;">
+    <h2>Вход</h2>
+    <input id="login" placeholder="Логин">
+    <input id="pass" type="password" placeholder="Пароль">
+    <button onclick="login()">Войти</button>
+  </div>
+
+  <div id="adminPanel" class="grid" style="display:none;">
+    
+    <div class="card">
+      <h2>Управление игроком</h2>
+      <select id="userList"></select>
+      <input id="giveAmount" type="number" placeholder="Сумма (например, 5000)">
+      <button onclick="giveMoney()">Выдать деньги</button>
+      <button class="danger" onclick="resetBalance()" style="margin-top: 10px;">Обнулить баланс</button>
+    </div>
+
+    <div class="card">
+      <h2>АВТО-СОЗДАНИЕ КЕЙСА (CS:GO)</h2>
+      <input id="autoCaseName" placeholder="Название кейса">
+      <input id="autoCasePrice" type="number" placeholder="Цена кейса (₽)">
+      <button onclick="generateCase()">Сгенерировать 15 скинов</button>
+    </div>
+
+    <div class="card">
+      <h2>Удалить кейс</h2>
+      <div id="casesListAdmin" style="margin-top: 15px; max-height: 300px; overflow-y: auto;"></div>
+    </div>
+
+    <div class="card">
+      <h2>Создать Промокод</h2>
+      <input id="promoCode" placeholder="КОД (например, BOSS)">
+      <input id="promoAmount" type="number" placeholder="Сумма (₽)">
+      <input id="promoUses" type="number" placeholder="Активаций" value="1">
+      <button onclick="createPromo()">Создать</button>
+    </div>
+
+  </div>
+  <div id="msg"></div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const showMsg = (text, isError) => { 
+      $('msg').textContent = text; $('msg').style.color = isError ? '#ef4444' : '#4ade80'; $('msg').style.borderColor = isError ? '#ef4444' : '#4ade80';
+      $('msg').style.display = 'block'; setTimeout(() => $('msg').style.display = 'none', 3000);
+    };
+
+    async function api(path, method = 'GET', body = null) {
+      try {
+        const res = await fetch('/api' + path, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : null });
+        const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Ошибка');
+        return data;
+      } catch (err) { showMsg('❌ ' + err.message, true); throw err; }
+    }
+
+    async function login() {
+      try {
+        const r = await api('/login', 'POST', { login: $('login').value, password: $('pass').value });
+        if (r.user && r.user.is_admin) {
+          $('loginBox').style.display = 'none'; $('adminPanel').style.display = 'flex';
+          showMsg('✅ Добро пожаловать, ' + r.user.login); loadUsers(); loadAdminCases();
+        } else { showMsg('❌ Вы не админ!', true); }
+      } catch (e) {}
+    }
+
+    async function loadUsers() {
+      const users = await api('/admin/users');
+      $('userList').innerHTML = users.map(u => `<option value="${u.id}">${u.login} (Баланс: ${u.balance})</option>`).join('');
+    }
+
+    async function giveMoney() { await api('/admin/give-money', 'POST', { user_id: $('userList').value, amount: Number($('giveAmount').value) }); showMsg('✅ Деньги выданы!'); loadUsers(); }
+    async function resetBalance() { if(!confirm('Обнулить?')) return; await api('/admin/reset-balance', 'POST', { user_id: $('userList').value }); showMsg('✅ Баланс обнулен!'); loadUsers(); }
+    
+    async function generateCase() {
+      showMsg('⏳ Связываемся с API CS:GO...');
+      try {
+        await api('/admin/generate-case', 'POST', { name: $('autoCaseName').value, price: Number($('autoCasePrice').value) });
+        showMsg('✅ Кейс создан из API!');
+        loadAdminCases();
+      } catch (e) {}
+    }
+
+    async function loadAdminCases() {
+      const cases = await api('/cases');
+      $('casesListAdmin').innerHTML = cases.map(c => `
+        <div class="case-list-item">
+          <div>📦 ${c.name} (ID: ${c.id})</div>
+          <button class="danger" style="width: auto; padding: 5px 10px;" onclick="deleteCase(${c.id})">Удалить</button>
+        </div>`).join('');
+    }
+
+    async function deleteCase(id) { if(!confirm('Удалить кейс?')) return; await api('/admin/case/' + id, 'DELETE'); showMsg('✅ Удален!'); loadAdminCases(); }
+
+    async function createPromo() {
+      await api('/admin/promo', 'POST', { code: $('promoCode').value, amount: Number($('promoAmount').value), uses_left: Number($('promoUses').value) });
+      showMsg('✅ Промокод создан!');
+    }
+  </script>
+</body>
+</html>
