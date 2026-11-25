@@ -34,11 +34,27 @@ const getMultiplier = (price) => {
 };
 
 app.post('/api/login', async (req, res) => {
-  const user = await db.query('SELECT * FROM users WHERE login=$1', [req.body.login]);
-  if (user.rows.length === 0 || !bcrypt.compareSync(req.body.password || '', user.rows[0].password_hash)) return res.status(401).json({ error: 'Неверные данные' });
-  res.cookie('token', sign(user.rows[0]), { httpOnly: true, sameSite: 'lax' });
-  res.json({ ok: true, user: publicView(user.rows[0]) });
-});
+  try {
+    const user = await db.query('SELECT * FROM users WHERE login=$1', [req.body.login]);
+    if (user.rows.length === 0) {
+      console.log('❌ Пользователь не найден:', req.body.login);
+      return res.status(401).json({ error: 'Неверные данные' });
+    }
+    
+    const isValid = bcrypt.compareSync(req.body.password || '', user.rows[0].password_hash);
+    if (!isValid) {
+      console.log('❌ Неверный пароль для:', req.body.login);
+      return res.status(401).json({ error: 'Неверные данные' });
+    }
+    
+    console.log('✅ Успешный вход:', req.body.login);
+    res.cookie('token', sign(user.rows[0]), { httpOnly: true, sameSite: 'lax' });
+    res.json({ ok: true, user: publicView(user.rows[0]) });
+  } catch (err) {
+    console.error('Ошибка входа:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});    
 app.post('/api/logout', (req, res) => { res.clearCookie('token'); res.json({ ok: true }); });
 app.get('/api/me', auth, async (req, res) => { const u = await db.query('SELECT * FROM users WHERE id=$1', [req.user.id]); res.json(publicView(u.rows[0])); });
 
