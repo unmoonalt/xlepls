@@ -1,17 +1,26 @@
-require('dotenv').config();
-const express = require('express');
-const cookieParser = require('cookie-parser');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const db = require('./db');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import db, { initDb } from './db.js';
+
+dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
+
+const uploadDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const upload = multer({ storage: multer.diskStorage({ destination: uploadDir, filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)) }) });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
 const sign = (u) => jwt.sign({ id: u.id, is_admin: !!u.is_admin }, JWT_SECRET, { expiresIn: '7d' });
@@ -95,7 +104,6 @@ app.post('/api/upgrade', auth, async (req, res) => {
   const item = (await db.query('SELECT * FROM inventory WHERE id=$1 AND user_id=$2', [req.body.inventory_id, req.user.id])).rows[0];
   const target = (await db.query('SELECT * FROM case_items WHERE id=$1', [req.body.target_case_item_id])).rows[0];
   if (!item || !target || target.price <= item.price) return res.status(400).json({ error: 'Ошибка' });
-  
   const chance = Math.min(0.9, item.price / target.price);
   const success = Math.random() < chance;
   await db.query('DELETE FROM inventory WHERE id=$1', [item.id]);
@@ -126,6 +134,9 @@ app.post('/api/admin/generate-case', auth, adminOnly, async (req, res) => {
   }
   res.json({ ok: true });
 });
+app.post('/api/admin/upload', auth, adminOnly, upload.single('image'), (req, res) => { res.json({ ok: true, url: '/uploads/' + req.file.filename }); });
 app.post('/api/admin/promo', auth, adminOnly, async (req, res) => { try { await db.query('INSERT INTO promos (code, amount, uses_left) VALUES ($1, $2, $3)', [req.body.code, req.body.amount, req.body.uses_left]); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Ошибка' }); } });
 
-app.listen(process.env.PORT || 3000, () => console.log(`🚀 Server started`));
+initDb().then(() => {
+  app.listen(process.env.PORT || 3000, () => console.log(`🚀 Server started`));
+}).catch(console.error);
